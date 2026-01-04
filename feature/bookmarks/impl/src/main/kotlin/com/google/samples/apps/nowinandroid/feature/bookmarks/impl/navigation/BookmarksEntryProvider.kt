@@ -27,12 +27,15 @@ import com.google.samples.apps.nowinandroid.feature.bookmarks.api.navigation.Boo
 import com.google.samples.apps.nowinandroid.feature.bookmarks.impl.BookmarksScreen
 import com.google.samples.apps.nowinandroid.feature.topic.api.navigation.navigateToTopic
 
+// 注册书签页到导航。用 app 的 Snackbar 来弹消息。
 fun EntryProviderScope<NavKey>.bookmarksEntry(navigator: Navigator) {
     entry<BookmarksNavKey> {
+        // 拿到 app 提供的全局 Snackbar 状态
         val snackbarHostState = LocalSnackbarHostState.current
         BookmarksScreen(
             onTopicClick = navigator::navigateToTopic,
             onShowSnackbar = { message, action ->
+                // 弹短提示，返回用户是否点了操作按钮
                 snackbarHostState.showSnackbar(
                     message = message,
                     actionLabel = action,
@@ -43,7 +46,7 @@ fun EntryProviderScope<NavKey>.bookmarksEntry(navigator: Navigator) {
     }
 }
 
-// TODO: Why is this here?
+// 全局 Snackbar 的入口（真实实例由 app 在运行时提供）
 val LocalSnackbarHostState = compositionLocalOf<SnackbarHostState> {
     error("SnackbarHostState state should be initialized at runtime")
 }

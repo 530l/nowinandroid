@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!--
+    简体中文翻译：core/ui 模块字符串资源
+    该文件用于在系统语言为中文时替换界面文本（zh）。
+-->
+<resources>
+    <string name="core_ui_bookmark">收藏</string>
+    <string name="core_ui_unbookmark">取消收藏</string>
+    <string name="core_ui_back">返回</string>
+
+    <string name="core_ui_unread_resource_dot_content_description">未读</string>
+
+    <string name="core_ui_card_tap_action">打开资源链接</string>
+    <string name="core_ui_card_meta_data_text">%1$s • %2$s</string>
+
+    <string name="core_ui_topic_chip_content_description_when_followed">%1$s 已关注</string>
+    <string name="core_ui_topic_chip_content_description_when_not_followed">%1$s 未关注</string>
+
+    <string name="core_ui_interests_card_follow_button_content_desc">关注兴趣</string>
+    <string name="core_ui_interests_card_unfollow_button_content_desc">取消关注兴趣</string>
+    <string name="core_ui_feed_sharing">分享</string>
+    <string name="core_ui_feed_sharing_data">%1$s：%2$s</string>
+</resources>
+

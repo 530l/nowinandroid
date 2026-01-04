@@ -20,11 +20,14 @@ import com.google.samples.apps.nowinandroid.core.model.data.UserNewsResource
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Data layer implementation for [UserNewsResource]
+ * 干啥用的（大白话）：
+ * 给界面提供新闻列表，而且每条新闻里已经替你标好了「这条是不是你看过／收藏／和你关注的话题有关」。
+ * UI 只要订阅这些流，就能直接渲染带用户状态的新闻项。
  */
 interface UserNewsResourceRepository {
     /**
-     * Returns available news resources as a stream.
+     * 根据条件拿新闻列表。
+     * 比如按话题过滤或按 id 列表过滤。UI 用这个来显示普通列表。
      */
     fun observeAll(
         query: NewsResourceQuery = NewsResourceQuery(
@@ -34,12 +37,14 @@ interface UserNewsResourceRepository {
     ): Flow<List<UserNewsResource>>
 
     /**
-     * Returns available news resources for the user's followed topics as a stream.
+     * 拿用户关注的话题相关的新闻（也带上用户的已读/收藏状态）。
+     * 用处：为你推荐 / 关注 页面的数据源。
      */
     fun observeAllForFollowedTopics(): Flow<List<UserNewsResource>>
 
     /**
-     * Returns the user's bookmarked news resources as a stream.
+     * 拿用户收藏（书签）的新闻（也带上用户的已读状态）。
+     * 用处：书签页或计算书签相关的未读提醒。
      */
     fun observeAllBookmarked(): Flow<List<UserNewsResource>>
 }

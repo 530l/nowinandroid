@@ -22,7 +22,6 @@ import androidx.annotation.ColorInt
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -41,8 +40,7 @@ import com.google.samples.apps.nowinandroid.core.designsystem.theme.NiaTheme
 import com.google.samples.apps.nowinandroid.core.model.data.UserNewsResource
 
 /**
- * An extension on [LazyListScope] defining a feed with news resources.
- * Depending on the [feedState], this might emit no items.
+ * 干啥用（大白话）：给界面提供一组“带用户状态”的新闻卡片，UI 只要把它放进 LazyVerticalStaggeredGrid 就能渲染。
  */
 fun LazyStaggeredGridScope.newsFeed(
     feedState: NewsFeedUiState,
@@ -63,6 +61,7 @@ fun LazyStaggeredGridScope.newsFeed(
                 val analyticsHelper = LocalAnalyticsHelper.current
                 val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
 
+                // 每个新闻卡片：点击会打开文章、记录埋点并把这条标记为已读
                 NewsResourceCardExpanded(
                     userNewsResource = userNewsResource,
                     isBookmarked = userNewsResource.isSaved,
@@ -71,7 +70,11 @@ fun LazyStaggeredGridScope.newsFeed(
                         analyticsHelper.logNewsResourceOpened(
                             newsResourceId = userNewsResource.id,
                         )
-                        launchCustomChromeTab(context, Uri.parse(userNewsResource.url), backgroundColor)
+                        // 使用 KTX 的 toUri() 更简洁
+                        launchCustomChromeTab(
+                            context, Uri.parse(userNewsResource.url),
+                            backgroundColor,
+                        )
 
                         onNewsResourceViewed(userNewsResource.id)
                     },
@@ -92,6 +95,7 @@ fun LazyStaggeredGridScope.newsFeed(
     }
 }
 
+// 用 Chrome Custom Tab 打开链接，并设置工具栏颜色（很常用的打开网页方法）
 fun launchCustomChromeTab(context: Context, uri: Uri, @ColorInt toolbarColor: Int) {
     val customTabBarColor = CustomTabColorSchemeParams.Builder()
         .setToolbarColor(toolbarColor).build()
@@ -103,25 +107,17 @@ fun launchCustomChromeTab(context: Context, uri: Uri, @ColorInt toolbarColor: In
 }
 
 /**
- * A sealed hierarchy describing the state of the feed of news resources.
+ * 列表状态：要么还在加载，要么加载好了并带一堆新闻数据。
  */
 sealed interface NewsFeedUiState {
-    /**
-     * The feed is still loading.
-     */
+    // 还在加载中，先别显示内容。
     data object Loading : NewsFeedUiState
 
-    /**
-     * The feed is loaded with the given list of news resources.
-     */
-    data class Success(
-        /**
-         * The list of news resources contained in this feed.
-         */
-        val feed: List<UserNewsResource>,
-    ) : NewsFeedUiState
+    // 加载完成，里面带着要显示的新闻列表。
+    data class Success(val feed: List<UserNewsResource>) : NewsFeedUiState
 }
 
+// 下面是预览用的简单说明：把 newsFeed 放到一个 LazyVerticalStaggeredGrid 里预览。
 @Preview
 @Composable
 private fun NewsFeedLoadingPreview() {

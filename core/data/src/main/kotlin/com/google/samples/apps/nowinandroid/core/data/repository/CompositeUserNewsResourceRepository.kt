@@ -27,8 +27,9 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
- * Implements a [UserNewsResourceRepository] by combining a [NewsRepository] with a
- * [UserDataRepository].
+ * 简单说明（中文，大白话）：
+ * 这个类把新闻内容（NewsRepository）和用户设置（UserDataRepository）合并起来，
+ * 然后给 UI 提供「带用户信息的新闻条目」流（比如标记了是否已读、是否已收藏等）。
  */
 class CompositeUserNewsResourceRepository @Inject constructor(
     val newsRepository: NewsRepository,
@@ -36,7 +37,8 @@ class CompositeUserNewsResourceRepository @Inject constructor(
 ) : UserNewsResourceRepository {
 
     /**
-     * Returns available news resources (joined with user data) matching the given query.
+     * 返回符合查询条件的新闻项，并把用户数据（已读/已收藏/用户关注等）合并进去。
+     * 用处：列表展示时订阅这个流，会拿到带用户状态的新闻项。
      */
     override fun observeAll(
         query: NewsResourceQuery,
@@ -47,7 +49,8 @@ class CompositeUserNewsResourceRepository @Inject constructor(
             }
 
     /**
-     * Returns available news resources (joined with user data) for the followed topics.
+     * 返回用户关注的话题对应的新闻项（带用户状态）。
+     * 如果用户没有关注任何话题，直接返回空列表流，避免不必要的查询。
      */
     override fun observeAllForFollowedTopics(): Flow<List<UserNewsResource>> =
         userDataRepository.userData.map { it.followedTopics }.distinctUntilChanged()
@@ -58,6 +61,10 @@ class CompositeUserNewsResourceRepository @Inject constructor(
                 }
             }
 
+    /**
+     * 返回用户已收藏（书签）的新闻项（带用户状态）。
+     * 如果没有收藏任何内容，直接返回空列表流。
+     */
     override fun observeAllBookmarked(): Flow<List<UserNewsResource>> =
         userDataRepository.userData.map { it.bookmarkedNewsResources }.distinctUntilChanged()
             .flatMapLatest { bookmarkedNewsResources ->

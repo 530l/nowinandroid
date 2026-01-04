@@ -16,6 +16,9 @@
 
 package com.google.samples.apps.nowinandroid.feature.bookmarks.impl
 
+// 大白话：这个文件负责显示“书签”页面，处理加载、列表、空状态和撤销提示，
+// 初级开发者通常只改 UI 表现或 ViewModel 的数据。
+
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.Orientation
@@ -83,6 +86,9 @@ internal fun BookmarksScreen(
     modifier: Modifier = Modifier,
     viewModel: BookmarksViewModel = hiltViewModel(),
 ) {
+    // 入口：这个版本从 ViewModel 拿数据，然后调用下面的 UI 渲染函数。
+    //用户进入书签页面，Compose 开始 collect
+    //collectAsStateWithLifecycle() 自动停止 collect（得益于 Lifecycle 感知）
     val feedState by viewModel.feedUiState.collectAsStateWithLifecycle()
     BookmarksScreen(
         feedState = feedState,
@@ -98,7 +104,7 @@ internal fun BookmarksScreen(
 }
 
 /**
- * Displays the user's bookmarked articles. Includes support for loading and empty states.
+ * 渲染书签页面的主要函数：根据状态显示加载/列表/空页面，处理撤销逻辑。
  */
 @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
 @Composable
@@ -116,6 +122,7 @@ internal fun BookmarksScreen(
     val bookmarkRemovedMessage = stringResource(id = R.string.feature_bookmarks_api_removed)
     val undoText = stringResource(id = R.string.feature_bookmarks_api_undo)
 
+    // 如果需要显示撤销提示，就弹 snackbar，点了“撤销”就恢复书签，否则清理状态。
     LaunchedEffect(shouldDisplayUndoBookmark) {
         if (shouldDisplayUndoBookmark) {
             val snackBarResult = onShowSnackbar(bookmarkRemovedMessage, undoText)
@@ -127,10 +134,12 @@ internal fun BookmarksScreen(
         }
     }
 
+    // 页面离开时清理撤销状态，避免残留。
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         clearUndoState()
     }
 
+    // 根据状态显示不同 UI。
     when (feedState) {
         Loading -> LoadingState(modifier)
         is Success -> if (feedState.feed.isNotEmpty()) {
@@ -146,11 +155,13 @@ internal fun BookmarksScreen(
         }
     }
 
+    // 埋点：记录当前页面为“已保存”（Saved）。
     TrackScreenViewEvent(screenName = "Saved")
 }
 
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
+    // 简单加载菊花，页面居中显示。
     NiaLoadingWheel(
         modifier = modifier
             .fillMaxWidth()
@@ -168,14 +179,15 @@ private fun BookmarksGrid(
     onTopicClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 显示瀑布流网格，并带可拖动的滚动条。
     val scrollableState = rememberLazyStaggeredGridState()
     TrackScrollJank(scrollableState = scrollableState, stateName = "bookmarks:grid")
-    Box(
-        modifier = modifier
-            .fillMaxSize(),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         LazyVerticalStaggeredGrid(
+            //Fixed = 固定列数（数量死的，宽度活的），不管屏幕多大，都是固定显示几列。
+            //Adaptive = 固定最小宽度（宽度有底线，数量活的）,如果横屏会多显示几列，
             columns = StaggeredGridCells.Adaptive(300.dp),
+//            columns = StaggeredGridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalItemSpacing = 24.dp,
@@ -190,17 +202,23 @@ private fun BookmarksGrid(
                 onNewsResourceViewed = onNewsResourceViewed,
                 onTopicClick = onTopicClick,
             )
+            // 底部留空，避免被系统栏遮挡内容
+            // 在 LazyVerticalStaggeredGrid 底部留出安全区域（如手机底部手势栏、Home Indicator）的高度，防止内容被遮挡。
             item(span = StaggeredGridItemSpan.FullLine) {
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing))
             }
         }
+
+        //右边拖动条。
         val itemsAvailable = when (feedState) {
             Loading -> 1
             is Success -> feedState.feed.size
         }
+
         val scrollbarState = scrollableState.scrollbarState(
             itemsAvailable = itemsAvailable,
         )
+        // 放在 Box 右侧中间位置
         scrollableState.DraggableScrollbar(
             modifier = Modifier
                 .fillMaxHeight()
@@ -218,6 +236,7 @@ private fun BookmarksGrid(
 
 @Composable
 private fun EmptyState(modifier: Modifier = Modifier) {
+    // 空状态：显示图片和提示文字，居中。
     Column(
         modifier = modifier
             .padding(16.dp)
