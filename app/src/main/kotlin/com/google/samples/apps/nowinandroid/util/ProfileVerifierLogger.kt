@@ -48,6 +48,13 @@ import javax.inject.Inject
  *
  * @see androidx.profileinstaller.ProfileVerifier.CompilationStatus.ResultCode
  */
+
+/*
+ 简短说明（中文）：
+ - 该类用于查询并记录应用的基线 profile 是否已被安装/编译。
+ - 在 Play 商店分发时，安装过程会自动编译；本地调试时可用上面的 adb 命令手动触发编译以快速验证。
+ - 使用方式：在合适的时机（如应用启动或手动触发）调用 `ProfileVerifierLogger()`。
+*/
 class ProfileVerifierLogger @Inject constructor(
     @ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -56,13 +63,17 @@ class ProfileVerifierLogger @Inject constructor(
     }
 
     operator fun invoke() = scope.launch {
+        // 异步获取 ProfileVerifier 返回的编译状态，并记录主要字段以便调试。
         val status = ProfileVerifier.getCompilationStatusAsync().await()
         Log.d(TAG, "Status code: ${status.profileInstallResultCode}")
         Log.d(
             TAG,
             when {
+                // 已使用基线 profile 编译
                 status.isCompiledWithProfile -> "App compiled with profile"
+                // 已排队等待编译（常见于未手动触发本地编译时）
                 status.hasProfileEnqueuedForCompilation() -> "Profile enqueued for compilation"
+                // 未编译也未排队
                 else -> "Profile not compiled nor enqueued"
             },
         )

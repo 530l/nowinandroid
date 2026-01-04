@@ -86,16 +86,25 @@ import com.google.samples.apps.nowinandroid.feature.topic.impl.navigation.topicE
 import com.google.samples.apps.nowinandroid.navigation.TOP_LEVEL_NAV_ITEMS
 import com.google.samples.apps.nowinandroid.feature.settings.impl.R as settingsR
 
+// 这个文件包含应用的顶级 Composable：
+// - 负责整体背景与渐变色的展示
+// - 管理离线提示（snackbar）与设置弹窗
+// - 渲染底部/侧边导航与内容区域
+
 @Composable
 fun NiaApp(
     appState: NiaAppState,
     modifier: Modifier = Modifier,
     windowAdaptiveInfo: WindowAdaptiveInfo = currentWindowAdaptiveInfo(),
 ) {
+    // 当导航到 "For You" 页时显示渐变背景，否则显示默认背景色
     val shouldShowGradientBackground = appState.navigationState.currentTopLevelKey == ForYouNavKey
+    // 控制设置对话框是否显示（状态可保存）
     var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
 
+    // 根背景（用于处理屏幕背景色或图片）
     NiaBackground(modifier = modifier) {
+        // 可根据当前顶层栏目选择是否使用渐变色
         NiaGradientBackground(
             gradientColors = if (shouldShowGradientBackground) {
                 LocalGradientColors.current
@@ -103,11 +112,12 @@ fun NiaApp(
                 GradientColors()
             },
         ) {
+            // 用于显示离线/提示信息的 Snackbar 状态
             val snackbarHostState = remember { SnackbarHostState() }
 
             val isOffline by appState.isOffline.collectAsStateWithLifecycle()
 
-            // If user is not connected to the internet show a snack bar to inform them.
+            // 若检测到离线，则弹出一个长期显示的 snackbar 提示用户
             val notConnectedMessage = stringResource(R.string.not_connected)
             LaunchedEffect(isOffline) {
                 if (isOffline) {
@@ -117,7 +127,10 @@ fun NiaApp(
                     )
                 }
             }
+
+            // 将 snackbarHostState 暴露给需要的子组件（例如书签模块）
             CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+                // 将具体 UI 渲染委托给内部实现，便于在外面控制一些全局状态
                 NiaApp(
                     appState = appState,
 
@@ -146,9 +159,11 @@ internal fun NiaApp(
     modifier: Modifier = Modifier,
     windowAdaptiveInfo: WindowAdaptiveInfo = currentWindowAdaptiveInfo(),
 ) {
+    // 监听哪些顶层导航项有未读内容（用于显示小红点）
     val unreadNavKeys by appState.topLevelNavKeysWithUnreadResources
         .collectAsStateWithLifecycle()
 
+    // 如果需要展示设置对话框，则渲染它
     if (showSettingsDialog) {
         SettingsDialog(
             onDismiss = { onSettingsDismissed() },
@@ -157,8 +172,10 @@ internal fun NiaApp(
 
     val snackbarHostState = LocalSnackbarHostState.current
 
+    // 本地 Navigator，负责触发导航动作
     val navigator = remember { Navigator(appState.navigationState) }
 
+    // 导航容器：负责渲染导航项（底部或侧边栏）并显示内容
     NiaNavigationSuiteScaffold(
         navigationSuiteItems = {
             TOP_LEVEL_NAV_ITEMS.forEach { (navKey, navItem) ->
@@ -217,7 +234,7 @@ internal fun NiaApp(
                         ),
                     ),
             ) {
-                // Only show the top app bar on top level destinations.
+                // 仅在顶层目的地显示顶部 AppBar
                 var shouldShowTopAppBar = false
 
                 if (appState.navigationState.currentKey in appState.navigationState.topLevelKeys) {
@@ -264,6 +281,7 @@ internal fun NiaApp(
                         searchEntry(navigator)
                     }
 
+                    // NavDisplay 将 entryProvider 转换为可渲染的 entries，并根据屏幕尺寸选择展示策略
                     NavDisplay(
                         entries = appState.navigationState.toEntries(entryProvider),
                         sceneStrategy = listDetailStrategy,
@@ -278,6 +296,7 @@ internal fun NiaApp(
     }
 }
 
+// 小红点（通知）绘制修饰器：在导航图标上绘制一个小圆点表示未读
 private fun Modifier.notificationDot(): Modifier =
     composed {
         val tertiaryColor = MaterialTheme.colorScheme.tertiary
@@ -286,8 +305,8 @@ private fun Modifier.notificationDot(): Modifier =
             drawCircle(
                 tertiaryColor,
                 radius = 5.dp.toPx(),
-                // This is based on the dimensions of the NavigationBar's "indicator pill";
-                // however, its parameters are private, so we must depend on them implicitly
+                // 这里的位移根据 NavigationBar 的指示器 pill 的大小估算得出；
+                // 由于相关参数为私有，这里使用一个经验值来定位小点。
                 // (NavigationBarTokens.ActiveIndicatorWidth = 64.dp)
                 center = center + Offset(
                     64.dp.toPx() * .45f,

@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.TimeZone
 
+// 创建并记住 NiaApp 的状态对象，用于 UI 层使用
 @Composable
 fun rememberNiaAppState(
     networkMonitor: NetworkMonitor,
@@ -45,8 +46,10 @@ fun rememberNiaAppState(
     timeZoneMonitor: TimeZoneMonitor,
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ): NiaAppState {
+    // 初始化导航状态，默认页面为 ForYou，顶层导航键来自 TOP_LEVEL_NAV_ITEMS
     val navigationState = rememberNavigationState(ForYouNavKey, TOP_LEVEL_NAV_ITEMS.keys)
 
+    // 跟踪导航以用于性能统计（JankStats）
     NavigationTrackingSideEffect(navigationState)
 
     return remember(
@@ -66,6 +69,7 @@ fun rememberNiaAppState(
     }
 }
 
+// 应用级别的状态容器（可稳定使用），向 UI 暴露需要的状态流
 @Stable
 class NiaAppState(
     val navigationState: NavigationState,
@@ -74,6 +78,7 @@ class NiaAppState(
     userNewsResourceRepository: UserNewsResourceRepository,
     timeZoneMonitor: TimeZoneMonitor,
 ) {
+    // 表示是否离线（true = 离线）。从 NetworkMonitor 的 isOnline 取反并转成 StateFlow，方便在 Compose 中订阅。
     val isOffline = networkMonitor.isOnline
         .map(Boolean::not)
         .stateIn(
@@ -83,13 +88,16 @@ class NiaAppState(
         )
 
     /**
-     * The top level nav keys that have unread news resources.
+     * 哪些顶层导航键有未读内容（用于显示小红点等提示）。
+     * 通过组合“关注主题的资源”和“已书签资源”的未读状态来计算。
      */
     val topLevelNavKeysWithUnreadResources: StateFlow<Set<NavKey>> =
         userNewsResourceRepository.observeAllForFollowedTopics()
             .combine(userNewsResourceRepository.observeAllBookmarked()) { forYouNewsResources, bookmarkedNewsResources ->
                 setOfNotNull(
+                    // 如果关注的资源中有未读，则将 ForYouNavKey 包含进集合
                     ForYouNavKey.takeIf { forYouNewsResources.any { !it.hasBeenViewed } },
+                    // 如果书签资源中有未读，则将 BookmarksNavKey 包含进集合
                     BookmarksNavKey.takeIf { bookmarkedNewsResources.any { !it.hasBeenViewed } },
                 )
             }
@@ -99,6 +107,7 @@ class NiaAppState(
                 initialValue = emptySet(),
             )
 
+    // 当前时区信息，默认使用系统时区。供需要显示时间/本地化的 UI 使用。
     val currentTimeZone = timeZoneMonitor.currentTimeZone
         .stateIn(
             coroutineScope,
@@ -108,7 +117,8 @@ class NiaAppState(
 }
 
 /**
- * Stores information about navigation events to be used with JankStats
+ * 跟踪导航事件以用于 JankStats（性能/卡顿追踪）。
+ * 在导航 key 变化时，将当前 key 写入 metricsHolder 中。
  */
 @Composable
 private fun NavigationTrackingSideEffect(navigationState: NavigationState) {

@@ -56,20 +56,32 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     /**
-     * Lazily inject [JankStats], which is used to track jank throughout the app.
+     * 简短说明（中文）：
+     * MainActivity 是应用的宿主 Activity，负责：
+     * - 注入跨应用工具（如 JankStats、网络/时区监控、分析工具）
+     * - 控制主题（暗色/动态配色）并开启 edge-to-edge
+     * - 创建并提供 `NiaAppState` 给 Composable 树
+     */
+
+    /**
+     * 懒加载注入的 JankStats，用于性能卡顿统计（按需启停以节省资源）。
      */
     @Inject
     lateinit var lazyStats: dagger.Lazy<JankStats>
 
+    // 注入网络状态监控，用于检测离线
     @Inject
     lateinit var networkMonitor: NetworkMonitor
 
+    // 注入时区监控，用于将当前时区提供给界面展示时间
     @Inject
     lateinit var timeZoneMonitor: TimeZoneMonitor
 
+    // 注入 Analytics helper，用于在 UI 层记录事件
     @Inject
     lateinit var analyticsHelper: AnalyticsHelper
 
+    // 注入用户阅读/书签资源仓库，用于计算未读状态等
     @Inject
     lateinit var userNewsResourceRepository: UserNewsResourceRepository
 
@@ -79,8 +91,8 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // We keep this as a mutable state, so that we can track changes inside the composition.
-        // This allows us to react to dark/light mode changes.
+        // 使用一个可变状态对象收集主题相关设置，便于在 Compose 中响应变化。
+        // 这个对象合并了系统配置和用户偏好，避免不必要的重组。
         var themeSettings by mutableStateOf(
             ThemeSettings(
                 darkTheme = resources.configuration.isSystemInDarkTheme,
@@ -89,7 +101,8 @@ class MainActivity : ComponentActivity() {
             ),
         )
 
-        // Update the uiState
+        // 组合系统暗色模式流与 viewModel.uiState，计算最终的主题设置并在生命周期 STARTED 时收集。
+        // 在收集到暗色模式变化时，会调用 enableEdgeToEdge 来开启沉浸式（edge-to-edge）并设置系统栏样式。
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(
@@ -107,11 +120,8 @@ class MainActivity : ComponentActivity() {
                     .distinctUntilChanged()
                     .collect { darkTheme ->
                         trace("niaEdgeToEdge") {
-                            // Turn off the decor fitting system windows, which allows us to handle insets,
-                            // including IME animations, and go edge-to-edge.
-                            // This is the same parameters as the default enableEdgeToEdge call, but we manually
-                            // resolve whether or not to show dark theme using uiState, since it can be different
-                            // than the configuration's dark theme value based on the user preference.
+                            // 开启 edge-to-edge：我们手动决定是否使用暗色主题（基于 uiState），
+                            // 并保持与默认 enableEdgeToEdge 相同的透明遮罩参数。
                             enableEdgeToEdge(
                                 statusBarStyle = SystemBarStyle.auto(
                                     lightScrim = android.graphics.Color.TRANSPARENT,
@@ -127,35 +137,40 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Keep the splash screen on-screen until the UI state is loaded. This condition is
-        // evaluated each time the app needs to be redrawn so it should be fast to avoid blocking
-        // the UI.
+        // 保持启动屏直到 UI 状态加载完成，避免在数据加载前展示空白界面。
+        // 这个判断会在每次重绘时被快速评估，因此应保持轻量。
         splashScreen.setKeepOnScreenCondition { viewModel.uiState.value.shouldKeepSplashScreen() }
 
         setContent {
+            // 创建并记住应用级状态（NiaAppState），该状态暴露网络/未读/时区等信息给 UI
             val appState = rememberNiaAppState(
                 networkMonitor = networkMonitor,
                 userNewsResourceRepository = userNewsResourceRepository,
                 timeZoneMonitor = timeZoneMonitor,
             )
 
+            // 从 appState 订阅当前时区，用于在界面中本地化时间显示
             val currentTimeZone by appState.currentTimeZone.collectAsStateWithLifecycle()
 
+            // 将分析工具与当前时区通过 CompositionLocal 提供给下层 Composable
             CompositionLocalProvider(
                 LocalAnalyticsHelper provides analyticsHelper,
                 LocalTimeZone provides currentTimeZone,
             ) {
+                // 应用主题：根据之前计算的 themeSettings 决定暗色/动态配色等
                 NiaTheme(
                     darkTheme = themeSettings.darkTheme,
                     androidTheme = themeSettings.androidTheme,
                     disableDynamicTheming = themeSettings.disableDynamicTheming,
                 ) {
+                    // 应用的顶层 Composable
                     NiaApp(appState)
                 }
             }
         }
     }
 
+    // 启用/禁用 JankStats 跟踪，避免在后台也持续消耗资源
     override fun onResume() {
         super.onResume()
         lazyStats.get().isTrackingEnabled = true
@@ -171,18 +186,21 @@ class MainActivity : ComponentActivity() {
  * The default light scrim, as defined by androidx and the platform:
  * https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:activity/activity/src/main/java/androidx/activity/EdgeToEdge.kt;l=35-38;drc=27e7d52e8604a080133e8b842db10c89b4482598
  */
+// 透明度较高的浅色遮罩，用于在浅色模式下对导航栏或状态栏做微弱遮罩
 private val lightScrim = android.graphics.Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
 
 /**
  * The default dark scrim, as defined by androidx and the platform:
  * https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:activity/activity/src/main/java/androidx/activity/EdgeToEdge.kt;l=40-44;drc=27e7d52e8604a080133e8b842db10c89b4482598
  */
+// 暗色模式下使用的暗色遮罩
 private val darkScrim = android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b)
 
 /**
  * Class for the system theme settings.
  * This wrapping class allows us to combine all the changes and prevent unnecessary recompositions.
  */
+// 主题设置数据类：封装暗色/原生主题/是否禁用动态配色等选项，减少重组频率
 data class ThemeSettings(
     val darkTheme: Boolean,
     val androidTheme: Boolean,
